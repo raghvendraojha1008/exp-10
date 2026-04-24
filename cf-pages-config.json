@@ -1,0 +1,10 @@
+{
+  "build": {
+    "command": "npm run build",
+    "output": "dist"
+  },
+  "environment_variables": {
+    "VITE_SUPABASE_URL": "https://hayjgddgktvagwkbqbrq.supabase.co",
+    "VITE_SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhheWpnZGRna3R2YWd3a2JxYnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MjY2NTksImV4cCI6MjA5MjEwMjY1OX0.YE_fOoOmEZzs5pAjEddWzDKfNIOYRo37pD-sZFOegnA"
+  }
+}

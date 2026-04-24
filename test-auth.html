@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Auth Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .log {
+            background: #333;
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Supabase Authentication Test</h1>
+    <div class="container">
+        <p>This page tests the Supabase authentication flow for Community Watch app.</p>
+        <p><strong>Prerequisites:</strong> Make sure the app is running at <code>http://localhost:8082</code></p>
+        
+        <div class="test-section">
+            <h3>1. Load Supabase Client</h3>
+            <button class="btn" onclick="loadSupabase()">Load Supabase Client</button>
+            <div id="load-status" class="status"></div>
+            <div id="load-log" class="log"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. Check Current Session</h3>
+            <button class="btn" onclick="checkSession()">Check Session</button>
+            <div id="session-status" class="status"></div>
+            <div id="session-log" class="log"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. Test Signup</h3>
+            <label>Test Email: <input type="text" id="testEmail" value="test@example.com" style="width: 300px;"></label><br>
+            <label>Test Password: <input type="password" id="testPassword" value="TestPassword123!" style="width: 300px;"></label><br>
+            <button class="btn btn-success" onclick="testSignup()">Sign Up New User</button>
+            <div id="signup-status" class="status"></div>
+            <div id="signup-log" class="log"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. Test Login</h3>
+            <button class="btn" onclick="testLogin()">Login with Above Credentials</button>
+            <div id="login-status" class="status"></div>
+            <div id="login-log" class="log"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>5. Cleanup (Logout)</h3>
+            <button class="btn btn-danger" onclick="logout()">Logout</button>
+            <div id="logout-status" class="status"></div>
+            <div id="logout-log" class="log"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Full Automated Test</h3>
+            <button class="btn" onclick="runFullTest()">Run Complete Auth Flow Test</button>
+            <div id="fulltest-status" class="status"></div>
+            <div id="fulltest-log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let supabaseClient = null;
+        let testCredentials = {
+            email: 'test@example.com',
+            password: 'TestPassword123!'
+        };
+
+        function logTo(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f8d7da' : type === 'success' ? '#d4edda' : '#d1ecf1';
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            element.innerHTML += `${prefix} [${timestamp}] ${message}\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function clearLog(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        function setStatus(elementId, message, type = '') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        async function loadSupabase() {
+            clearLog('load-log');
+            setStatus('load-status', 'Loading...');
+            
+            try {
+                // Import the Supabase client from the main app
+                const response = await fetch('http://localhost:8082/src/integrations/supabase/client.ts');
+                if (!response.ok) {
+                    throw new Error(`Failed to load client.ts: ${response.status}`);
+                }
+                
+                // Since we can't directly import modules from another origin due to CORS,
+                // we'll use the globally available supabase instance
+                if (window.supabase) {
+                    supabaseClient = window.supabase;
+                    logTo('load-log', 'Found global supabase instance');
+                } else {
+                    // Try to create a client manually
+                    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+                    supabaseClient = createClient(
+                        'https://your-project.supabase.co',
+                        'your-anon-key'
+                    );
+                    logTo('load-log', 'Created new supabase client (update with your credentials)');
+                }
+                
+                setStatus('load-status', 'Loaded', 'status-success');
+                logTo('load-log', 'Supabase client ready');
+            } catch (error) {
+                setStatus('load-status', 'Failed', 'status-error');
+                logTo('load-log', `Error: ${error.message}`, 'error');
+                logTo('load-log', 'Note: You need to manually load supabase from the app. Open browser console on http://localhost:8082 and run: window.supabase', 'info');
+            }
+        }
+
+        async function checkSession() {
+            if (!supabaseClient) {
+                alert('Please load Supabase client first');
+                return;
+            }
+            
+            clearLog('session-log');
+            setStatus('session-status', 'Checking...');
+            
+            try {
+                const { data, error } = await supabaseClient.auth.getSession();
+                if (error) {
+                    setStatus('session-status', 'Error', 'status-error');
+                    logTo('session-log', `Session error: ${error.message}`, 'error');
+                } else {
+                    setStatus('session-status', data.session ? 'Logged in' : 'No session', data.session ? 'status-success' : '');
+                    logTo('session-log', `Session: ${JSON.stringify(data.session, null, 2)}`);
+                    if (data.session) {
+                        logTo('session-log', `User: ${data.session.user.email}`, 'success');
+                    }
+                }
+            } catch (error) {
+                setStatus('session-status', 'Failed', 'status-error');
+                logTo('session-log', `Exception: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSignup() {
+            if (!supabaseClient) {
+                alert('Please load Supabase client first');
+                return;
+            }
+            
+            const email = document.getElementById('testEmail').value || `test${Date.now()}@example.com`;
+            const password = document.getElementById('testPassword').value || 'TestPassword123!';
+            
+            testCredentials = { email, password };
+            
+            clearLog('signup-log');
+            setStatus('signup-status', 'Signing up...');
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email,
+                    password
+                });
+                
+                if (error) {
+                    setStatus('signup-status', 'Failed', 'status-error');
+                    logTo('signup-log', `Signup error: ${error.message}`, 'error');
+                    logTo('signup-log', `Code: ${error.status}`, 'error');
+                } else {
+                    setStatus('signup-status', 'Success', 'status-success');
+                    logTo('signup-log', `User created: ${data.user?.email}`, 'success');
+                    logTo('signup-log', `User ID: ${data.user?.id}`);
+                    logTo('signup-log', `Email confirmed: ${data.user?.email_confirmed_at ? 'Yes' : 'No'}`);
+                    
+                    if (data.session) {
+                        logTo('signup-log', 'Session created automatically', 'success');
+                    }
+                }
+            } catch (error) {
+                setStatus('signup-status', 'Exception', 'status-error');
+                logTo('signup-log', `Exception: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            if (!supabaseClient) {
+                alert('Please load Supabase client first');
+                return;
+            }
+            
+            const { email, password } = testCredentials;
+            
+            clearLog('login-log');
+            setStatus('login-status', 'Logging in...');
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) {
+                    setStatus('login-status', 'Failed', 'status-error');
+                    logTo('login-log', `Login error: ${error.message}`, 'error');
+                    logTo('login-log', `Code: ${error.status}`, 'error');
+                } else {
+                    setStatus('login-status', 'Success', 'status-success');
+                    logTo('login-log', `Logged in as: ${data.user?.email}`, 'success');
+                    logTo('login-log', `Session: ${data.session ? 'Active' : 'None'}`);
+                }
+            } catch (error) {
+                setStatus('login-status', 'Exception', 'status-error');
+                logTo('login-log', `Exception: ${error.message}`, 'error');
+            }
+        }
+
+        async function logout() {
+            if (!supabaseClient) {
+                alert('Please load Supabase client first');
+                return;
+            }
+            
+            clearLog('logout-log');
+            setStatus('logout-status', 'Logging out...');
+            
+            try {
+                const { error } = await supabaseClient.auth.signOut();
+                if (error) {
+                    setStatus('logout-status', 'Failed', 'status-error');
+                    logTo('logout-log', `Logout error: ${error.message}`, 'error');
+                } else {
+                    setStatus('logout-status', 'Success', 'status-success');
+                    logTo('logout-log', 'Logged out successfully', 'success');
+                }
+            } catch (error) {
+                setStatus('logout-status', 'Exception', 'status-error');
+                logTo('logout-log', `Exception: ${error.message}`, 'error');
+            }
+        }
+
+        async function runFullTest() {
+            clearLog('fulltest-log');
+            setStatus('fulltest-status', 'Running full test...');
+            
+            // Simulate a full test
+            logTo('fulltest-log', '=== Starting Full Authentication Test ===');
+            
+            // Step 1: Load client
+            logTo('fulltest-log', '1. Loading Supabase client...');
+            await loadSupabase();
+            
+            if (!supabaseClient) {
+                logTo('fulltest-log', 'Cannot proceed without Supabase client', 'error');
+                return;
+            }
+            
+            // Step 2: Check initial session
+            logTo('fulltest-log', '2. Checking initial session...');
+            await checkSession();
+            
+            // Step 3: Signup
+            logTo('fulltest-log', '3. Testing signup with unique email...');
+            const uniqueEmail = `test${Date.now()}@example.com`;
+            testCredentials = { email: uniqueEmail, password: 'TestPassword123!' };
+            await testSignup();
+            
+            // Step 4: Login
+            logTo('fulltest-log', '4. Testing login...');
+            await testLogin();
+            
+            // Step 5: Logout
+            logTo('fulltest-log', '5. Testing logout...');
+            await logout();
+            
+            setStatus('fulltest-status', 'Test completed', 'status-success');
+            logTo('fulltest-log', '=== Full Test Complete ===', 'success');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            logTo('load-log', 'Ready to test Supabase authentication');
+            logTo('load-log', 'First, click "Load Supabase Client" to initialize');
+        });
+    </script>
+</body>
+</html>
